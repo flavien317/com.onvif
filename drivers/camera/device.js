@@ -2140,8 +2140,10 @@ class CameraDevice extends Homey.Device
 		{
 			if ((this.liveUri || this.userLiveUri) && (typeof this.homey.hasFeature === 'function') && this.homey.hasFeature('camera-streaming'))
 			{
-				this.homey.app.updateLog('Registering Live video stream (' + this.name + ')');
-				this.video = await this.homey.videos.createVideoRTSP();
+				this.homey.app.updateLog('Registering Live video stream via HLS (' + this.name + ')');
+				this.video = await this.homey.videos.createVideoHLS();
+				await this.setSettings({ streamingMode: this.homey.__('settings.streamingMode.cloud') });
+
 				this.video.registerVideoUrlListener(async () =>
 				{
 					let newUrl = this.userLiveUri;
@@ -2149,8 +2151,6 @@ class CameraDevice extends Homey.Device
 					if (!newUrl)
 					{
 						// Use ONVIF stream URL
-						// let reply = await this.homey.app.getStreamURL(this.cam);
-						// newUrl = `${reply.uri}`;
 						newUrl = this.liveUri;
 					}
 

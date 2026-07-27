@@ -32,7 +32,11 @@
         "statsThrottlingItem": "{camera} is throttled (dropped: {dropped}, rate: {rate} {unit})",
         "saveSuccess": "Saved successfully",
         "sendLogConfirm": "Send the log contents to the developer?",
-        "sendLogSuccess": "Log sent successfully"
+        "sendLogSuccess": "Log sent successfully",
+        "streamingMode": {
+            "cloud": "Streaming cloud (remote + local)",
+            "local": "Streaming local (RTSP only)"
+        }
     },
     "Push_Pull_Supported": "Push and Pull supported: ",
     "Using_Pull": "Using Pull",

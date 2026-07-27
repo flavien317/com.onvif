@@ -746,6 +746,19 @@
 					}
 				},
 				{
+					"id": "streamingMode",
+					"type": "label",
+					"label": {
+						"en": "Streaming Mode",
+						"fr": "Mode de streaming"
+					},
+					"value": "",
+					"hint": {
+						"en": "Indicates whether the video stream is available remotely via Homey cloud or only locally via RTSP.",
+						"fr": "Indique si le flux vidéo est disponible à distance via le cloud Homey ou uniquement en local via RTSP."
+					}
+				},
+				{
 					"id": "notificationMethods",
 					"type": "label",
 					"label": {

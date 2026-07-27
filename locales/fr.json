@@ -32,7 +32,11 @@
         "statsThrottlingItem": "{camera} est limitée (ignorés : {dropped}, taux : {rate} {unit})",
         "saveSuccess": "Enregistré avec succès",
         "sendLogConfirm": "Envoyer le contenu du journal au développeur ?",
-        "sendLogSuccess": "Journal envoyé avec succès"
+        "sendLogSuccess": "Journal envoyé avec succès",
+        "streamingMode": {
+            "cloud": "Streaming cloud (distant + local)",
+            "local": "Streaming local (RTSP uniquement)"
+        }
     },
     "Push_Pull_Supported": "Push et Pull pris en charge : ",
     "Using_Pull": "Utilisation de Pull",

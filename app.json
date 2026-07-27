@@ -1,10 +1,11 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.onvif",
-  "version": "2.0.70",
+  "version": "2.0.72",
   "compatibility": ">=7.4.1",
   "platforms": [
-    "local"
+    "local",
+    "cloud"
   ],
   "sdk": 3,
   "brandColor": "#FF7D4B",
@@ -1302,6 +1303,19 @@
                 "de": "Eine alternative Live-Stream-URL, die die erkannte überschreibt.\nCLassen Sie das Feld leer, um die erkannte URL zu verwenden.",
                 "nl": "Een alternatieve live stream URL die de gedetecteerde URL overschrijft.\nLaat het veld leeg om de gedetecteerde URL te gebruiken.",
                 "it": "Un URL di live stream alternativo che sostituisce quello rilevato.\nLascia il campo vuoto per utilizzare l'URL rilevato."
+              }
+            },
+            {
+              "id": "streamingMode",
+              "type": "label",
+              "label": {
+                "en": "Streaming Mode",
+                "fr": "Mode de streaming"
+              },
+              "value": "",
+              "hint": {
+                "en": "Indicates whether the video stream is available remotely via Homey cloud or only locally via RTSP.",
+                "fr": "Indique si le flux vidéo est disponible à distance via le cloud Homey ou uniquement en local via RTSP."
               }
             },
             {

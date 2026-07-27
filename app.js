@@ -4,7 +4,10 @@
 
 // eslint-disable-next-line no-undef
 if (process.env.DEBUG === '1') {
-	require('inspector').open(9225, '0.0.0.0', true);
+	const inspector = require('inspector');
+	if (!inspector.url()) {
+		inspector.open(9225, '0.0.0.0', true);
+	}
 }
 
 const Homey = require('homey');
