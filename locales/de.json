@@ -1,9 +1,38 @@
 {
     "settings": {
+        "pageTitle": "ONVIF-Einstellungen",
+        "settings": "Einstellungen",
+        "title": "Push-Server-Einstellungen",
+        "port": "Lauschender Port",
+        "save": "Speichern",
         "diagnosticsLog": "Diagnoseprotokoll",
         "logLevel": "Protokollstufe",
+        "logLevelErrorsOnly": "Nur Fehler",
+        "logLevelBasic": "Grundlegende Informationen",
+        "logLevelDetailed": "Detaillierte Informationen",
+        "logLevelFull": "Vollständige Informationen",
         "ClearLog": "Protokoll löschen",
-        "SendLog": "Protokoll versenden"
+        "SendLog": "Protokoll versenden",
+        "email": "E-Mail-Adresse oder Forum-ID (erforderlich, wenn Sie eine Antwort möchten)",
+        "statistics": "Statistiken",
+        "statsLastRateTitle": "Letzte Push-Ereignisrate (10s-Fenster)",
+        "statsRateUpdatesTitle": "Ratenverlauf (alle Kameras zusammen)",
+        "statsNoDataYet": "Noch keine Daten",
+        "statsNoUpdatesYet": "Noch keine Aktualisierungen",
+        "statsRateUnit": "Ereignisse/s",
+        "statsEventsLabel": "Ereignisse",
+        "statsAtLabel": "um",
+        "statsPeakRateTitle": "Höchste Push-Ereignisrate (seit letztem Zurücksetzen)",
+        "statsPeakRateNone": "Noch kein Spitzenwert aufgezeichnet",
+        "statsPeakRateCamera": "{camera} — {eps} {unit} {at} {time}",
+        "statsClearPeak": "Spitzenwert zurücksetzen",
+        "statsThrottlingTitle": "Drosselung",
+        "statsThrottlingRule": "Die Drosselung beginnt, wenn eine Kamera mehr als {maxEvents} Ereignisse innerhalb von {windowSeconds} Sekunden sendet.",
+        "statsThrottlingNone": "Derzeit werden keine Kameras gedrosselt",
+        "statsThrottlingItem": "{camera} wird gedrosselt (verworfen: {dropped}, Rate: {rate} {unit})",
+        "saveSuccess": "Erfolgreich gespeichert",
+        "sendLogConfirm": "Den Protokollinhalt an den Entwickler senden?",
+        "sendLogSuccess": "Protokoll erfolgreich gesendet"
     },
     "Push_Pull_Supported": "Übermitteln und Empfangen unterstützen: ",
     "Using_Pull": "benutze Empfangen",
@@ -12,5 +41,29 @@
     "Only_Push_Supported": "nur Übermitteln unterstützt",
     "Not_Supported": "Nicht unterstützt",
     "Motion_Event": "Bewegung Erkannt",
-    "Now": "Schnappschuss"
+    "Now": "Schnappschuss",
+    "pair": {
+        "manual_add": {
+            "intro": "Verbindungsdetails eingeben",
+            "title": "Kamera manuell hinzufügen",
+            "title2": "Bei der Kamera anmelden",
+            "repair_title": "Verbindung reparieren",
+            "username": "Benutzername",
+            "password": "Passwort",
+            "ip_address": "IP-Adresse",
+            "port": "ONVIF-Service-Port",
+            "login": "Anmelden",
+            "status": "Status",
+            "checking": "Verbindung wird überprüft",
+            "try_again": "Erneut versuchen",
+            "correct": "Erfolgreich",
+            "adding": "Gerät(e) wird/werden hinzugefügt",
+            "add_port": "Port zur Geräte-ID hinzufügen (für NVR, die Kameras über Portnummern zuordnen)"
+        }
+    },
+    "ptz": {
+        "presetValueTitle": "Position {index}: {name}",
+        "presetTitle": "PTZ-Voreinstellung ({count} Positionen)",
+        "presetSubtitle": "Voreingestellte Position auswählen"
+    }
 }

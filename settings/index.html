@@ -1,7 +1,10 @@
 <!doctype html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ONVIF Settings</title>
     <link rel="stylesheet" type="text/css" href="lwsa.css">
     <link rel="stylesheet" type="text/css" href="busy_indicator.css" />
 
@@ -20,6 +23,61 @@
         #busybox.show {
             display: block;
         }
+
+        #saveButton {
+            display: block;
+            background-color: #0f9e16;
+            color: white;
+            margin: 15px 20px 5px 5px;
+        }
+
+        .stats-card {
+            border: 1px solid #d5d5d5;
+            border-radius: 6px;
+            background: #f7f9fc;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+
+        .stats-title {
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        #statsLastRate {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        #statsList {
+            max-height: 320px;
+            overflow-y: auto;
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        #statsList li {
+            margin: 4px 0;
+        }
+
+        #statsThrottleNote {
+            margin: 0 0 8px 0;
+            color: #555;
+            font-size: 0.95rem;
+        }
+
+        #statsThrottleList {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        #statsThrottleList li {
+            margin: 4px 0;
+        }
+
+        #clearPeakButton {
+            margin-top: 8px;
+        }
     </style>
 
     <!-- The '/homey.js' script must be included in your settings view to work -->
@@ -35,8 +93,9 @@
 
     <!-- Tab links -->
     <div class="tab">
-        <button class="tablinks" onclick="setPage(event, 'settings')" id="defaultOpen"><span data-i18n="settings.settings"></span></button>
-        <button class="tablinks" onclick="setPage(event, 'log')"><span data-i18n="settings.diagnosticsLog"></span></button>
+        <button class="tablinks" onclick="setPage(event, 'settings')" id="defaultOpen" title="Settings" data-i18n-title="settings.settings"><span data-i18n="settings.settings"></span></button>
+        <button class="tablinks" onclick="setPage(event, 'log')" title="Diagnostics Log" data-i18n-title="settings.diagnosticsLog"><span data-i18n="settings.diagnosticsLog"></span></button>
+        <button class="tablinks" onclick="setPage(event, 'statistics')" title="Statistics" data-i18n-title="settings.statistics"><span data-i18n="settings.statistics"></span></button>
     </div>
 
     <!-- SETTINGS PAGE -->
@@ -45,10 +104,10 @@
             <h1 data-i18n="settings.title"></h1>
             <div class="field row">
                 <label class="homey-form-label" for="port" data-i18n="settings.port"></label>
-                <input class="homey-form-input" id="port" type="text" value="" />
+                <input class="homey-form-input" id="port" type="text" value="" title="Listening Port" placeholder="Listening Port" data-i18n-title="settings.port" data-i18n-placeholder="settings.port" />
             </div>
             <div class="field row">
-                <button class="homey-button-secondary-shadow" id="saveButton" class="left" style="display:block;background-color:#0f9e16;color:white;margin:15px 20px 5px 5px;" data-i18n="settings.save"></button>
+                <button class="homey-button-secondary-shadow" id="saveButton" title="Save" data-i18n-title="settings.save" data-i18n="settings.save"></button>
             </div>
         </fieldset>
     </div>
@@ -57,21 +116,39 @@
     <div id="log" class="tabcontent">
         <div class="field row">
             <label class="homey-form-label" for="logLevel"><span data-i18n="settings.logLevel"></span></label>
-            <select  class="homey-form-select" id="logLevel">
-                <option value=0>Errors Only</option>
-                <option value=1>Basic Information</option>
-                <option value=2>Detailed Information</option>
-                <option value=3>Full Information</option>
+            <select class="homey-form-select" id="logLevel" title="Log Level" aria-label="Log Level" data-i18n-title="settings.logLevel" data-i18n-aria-label="settings.logLevel">
+                <option value=0 data-i18n="settings.logLevelErrorsOnly"></option>
+                <option value=1 data-i18n="settings.logLevelBasic"></option>
+                <option value=2 data-i18n="settings.logLevelDetailed"></option>
+                <option value=3 data-i18n="settings.logLevelFull"></option>
             </select>
         </div>
         <div class="field row">
             <label class="homey-form-label"  for="email"><span data-i18n="settings.email"></span></label>
-            <input class="homey-form-input" id="email" type="text" value="" />
+            <input class="homey-form-input" id="email" type="text" value="" title="Email Address or Forum ID" placeholder="Email Address or Forum ID" data-i18n-title="settings.email" data-i18n-placeholder="settings.email" />
             <P></P>
         </div>
-        <p><button class="homey-button-secondary-shadow" id="clearLog"><span data-i18n="settings.ClearLog"></span></button> <button class="homey-button-secondary-shadow" id="sendLog"><span data-i18n="settings.SendLog"></span></button></p>
+        <p><button class="homey-button-secondary-shadow" id="clearLog" title="Clear Log" data-i18n-title="settings.ClearLog"><span data-i18n="settings.ClearLog"></span></button> <button class="homey-button-secondary-shadow" id="sendLog" title="Send Log" data-i18n-title="settings.SendLog"><span data-i18n="settings.SendLog"></span></button></p>
         <div class="field row">
-            <textarea id="diagLog"></textarea>
+            <textarea id="diagLog" title="Diagnostics Log" placeholder="Diagnostics Log" data-i18n-title="settings.diagnosticsLog" data-i18n-placeholder="settings.diagnosticsLog"></textarea>
+        </div>
+    </div>
+
+    <!-- STATISTICS PAGE -->
+    <div id="statistics" class="tabcontent">
+        <div class="stats-card">
+            <div class="stats-title" data-i18n="settings.statsPeakRateTitle"></div>
+            <div id="statsPeakRate" data-i18n="settings.statsPeakRateNone"></div>
+            <button class="homey-button-secondary-shadow" id="clearPeakButton" title="Reset Peak" data-i18n-title="settings.statsClearPeak" data-i18n="settings.statsClearPeak"></button>
+        </div>
+        <div class="stats-card">
+            <div class="stats-title" data-i18n="settings.statsRateUpdatesTitle"></div>
+            <ol id="statsList"></ol>
+        </div>
+        <div class="stats-card">
+            <div class="stats-title" data-i18n="settings.statsThrottlingTitle"></div>
+            <p id="statsThrottleNote"></p>
+            <ul id="statsThrottleList"></ul>
         </div>
     </div>
 
@@ -88,12 +165,193 @@
         var clearLogElement = document.getElementById('clearLog');
         var sendLogElement = document.getElementById('sendLog');
         var emailElement = document.getElementById('email');
+        var statsListElement = document.getElementById('statsList');
+        var statsPeakRateElement = document.getElementById('statsPeakRate');
+        var statsThrottleNoteElement = document.getElementById('statsThrottleNote');
+        var statsThrottleListElement = document.getElementById('statsThrottleList');
+        var clearPeakButtonElement = document.getElementById('clearPeakButton');
+        var i18nText =
+        {
+            statsNoDataYet: '',
+            statsNoUpdatesYet: '',
+            statsRateUnit: '',
+            statsEventsLabel: '',
+            statsAtLabel: '',
+            statsPeakRateNone: '',
+            statsPeakRateCamera: '',
+            statsThrottlingRule: '',
+            statsThrottlingNone: '',
+            statsThrottlingItem: '',
+            saveSuccess: '',
+            sendLogConfirm: '',
+            sendLogSuccess: '',
+        };
+
+        function initLocalizedText(Homey)
+        {
+            i18nText.statsNoDataYet = Homey.__('settings.statsNoDataYet');
+            i18nText.statsNoUpdatesYet = Homey.__('settings.statsNoUpdatesYet');
+            i18nText.statsRateUnit = Homey.__('settings.statsRateUnit');
+            i18nText.statsEventsLabel = Homey.__('settings.statsEventsLabel');
+            i18nText.statsAtLabel = Homey.__('settings.statsAtLabel');
+            i18nText.statsPeakRateNone = Homey.__('settings.statsPeakRateNone');
+            i18nText.statsPeakRateCamera = Homey.__('settings.statsPeakRateCamera');
+            i18nText.statsThrottlingRule = Homey.__('settings.statsThrottlingRule');
+            i18nText.statsThrottlingNone = Homey.__('settings.statsThrottlingNone');
+            i18nText.statsThrottlingItem = Homey.__('settings.statsThrottlingItem');
+            i18nText.saveSuccess = Homey.__('settings.saveSuccess');
+            i18nText.sendLogConfirm = Homey.__('settings.sendLogConfirm');
+            i18nText.sendLogSuccess = Homey.__('settings.sendLogSuccess');
+        }
+
+        function applyLocalizedAttributes(Homey)
+        {
+            var attributeMap = {
+                'data-i18n-title': 'title',
+                'data-i18n-placeholder': 'placeholder',
+                'data-i18n-aria-label': 'aria-label'
+            };
+
+            Object.keys(attributeMap).forEach(function(dataAttribute)
+            {
+                var targetAttribute = attributeMap[dataAttribute];
+                var elements = document.querySelectorAll('[' + dataAttribute + ']');
+                for (var i = 0; i < elements.length; i++)
+                {
+                    elements[i].setAttribute(targetAttribute, Homey.__(elements[i].getAttribute(dataAttribute)));
+                }
+            });
+        }
+
+        function renderThrottling(throttling)
+        {
+            var safe = throttling && typeof throttling === 'object' ? throttling : {};
+            var maxEvents = Number(safe.maxEventsPerWindow);
+            var windowMs = Number(safe.windowMs);
+            var windowSeconds = Number.isFinite(windowMs) ? (windowMs / 1000).toFixed(1) : '5.0';
+            var maxEventsText = Number.isFinite(maxEvents) ? String(maxEvents) : '100';
+
+            statsThrottleNoteElement.textContent = i18nText.statsThrottlingRule
+                .replace('{maxEvents}', maxEventsText)
+                .replace('{windowSeconds}', windowSeconds);
+
+            var active = Array.isArray(safe.activeCameras) ? safe.activeCameras : [];
+            statsThrottleListElement.innerHTML = '';
+            if (active.length === 0)
+            {
+                var emptyItem = document.createElement('li');
+                emptyItem.textContent = i18nText.statsThrottlingNone;
+                statsThrottleListElement.appendChild(emptyItem);
+                return;
+            }
+
+            for (var i = 0; i < active.length; i++)
+            {
+                var camera = active[i] && typeof active[i] === 'object' ? active[i] : {};
+                var label = camera.camera || camera.ip || 'unknown';
+                var dropped = Number(camera.droppedInWindow);
+                var rate = Number(camera.eventsPerSecond);
+                var droppedText = Number.isFinite(dropped) ? String(dropped) : '0';
+                var rateText = Number.isFinite(rate) ? rate.toFixed(2) : '0.00';
+                var item = document.createElement('li');
+                item.textContent = i18nText.statsThrottlingItem
+                    .replace('{camera}', label)
+                    .replace('{dropped}', droppedText)
+                    .replace('{rate}', rateText)
+                    .replace('{unit}', i18nText.statsRateUnit);
+                statsThrottleListElement.appendChild(item);
+            }
+        }
+
+        function formatRateSample(sample)
+        {
+            if (!sample || typeof sample !== 'object')
+            {
+                return i18nText.statsNoDataYet;
+            }
+
+            var eps = Number(sample.eventsPerSecond);
+            var events = Number(sample.eventsInWindow);
+            var stamp = Number(sample.timestamp);
+            var dateText = Number.isFinite(stamp) ? new Date(stamp).toLocaleTimeString() : '-';
+            var epsText = Number.isFinite(eps) ? eps.toFixed(2) : '0.00';
+            var eventsText = Number.isFinite(events) ? String(events) : '0';
+
+            return epsText + ' ' + i18nText.statsRateUnit + ' (' + eventsText + ' ' + i18nText.statsEventsLabel + ') ' + i18nText.statsAtLabel + ' ' + dateText;
+        }
+
+        function renderPeakRate(peak)
+        {
+            if (!peak || typeof peak !== 'object' || !Number.isFinite(Number(peak.eventsPerSecond)))
+            {
+                statsPeakRateElement.textContent = i18nText.statsPeakRateNone;
+                return;
+            }
+            var eps = Number(peak.eventsPerSecond);
+            var stamp = Number(peak.timestamp);
+            var dateText = Number.isFinite(stamp) ? new Date(stamp).toLocaleTimeString() : '-';
+            var epsText = Number.isFinite(eps) ? eps.toFixed(2) : '0.00';
+            var camera = peak.camera || peak.ip || 'unknown';
+            statsPeakRateElement.textContent = i18nText.statsPeakRateCamera
+                .replace('{camera}', camera)
+                .replace('{eps}', epsText)
+                .replace('{unit}', i18nText.statsRateUnit)
+                .replace('{at}', i18nText.statsAtLabel)
+                .replace('{time}', dateText);
+        }
+
+        function renderRateStats(lastSample, history)
+        {
+            statsListElement.innerHTML = '';
+            if (!Array.isArray(history) || history.length === 0)
+            {
+                var emptyItem = document.createElement('li');
+                emptyItem.textContent = i18nText.statsNoUpdatesYet;
+                statsListElement.appendChild(emptyItem);
+                return;
+            }
+
+            var maxItems = 10;
+            var startIndex = history.length - 1;
+            var endIndex = Math.max(history.length - maxItems, 0);
+
+            for (var i = startIndex; i >= endIndex; i--)
+            {
+                var item = document.createElement('li');
+                item.textContent = formatRateSample(history[i]);
+                statsListElement.appendChild(item);
+            }
+        }
+
+        function refreshRateStats(Homey)
+        {
+            Homey.api('GET', '/getRateStats/', null, function(err, stats)
+            {
+                if (err) return Homey.alert(err);
+
+                var safeStats = stats && typeof stats === 'object' ? stats : {};
+                renderPeakRate(safeStats.peak);
+                renderRateStats(safeStats.lastSample, safeStats.history);
+                renderThrottling(safeStats.throttling);
+            });
+        }
+
+        function applyRateStats(stats)
+        {
+            var safeStats = stats && typeof stats === 'object' ? stats : {};
+            renderPeakRate(safeStats.peak);
+            renderRateStats(safeStats.lastSample, safeStats.history);
+            renderThrottling(safeStats.throttling);
+        }
 
         // a method named 'onHomeyReady' must be present in your code
         function onHomeyReady(Homey)
         {
             // Tell Homey we're ready to be displayed
             Homey.ready();
+            initLocalizedText(Homey);
+            applyLocalizedAttributes(Homey);
+            document.title = Homey.__('settings.pageTitle');
 
             document.getElementById("defaultOpen").click();
 
@@ -105,17 +363,18 @@
                     portElement.value = port;
                 });
 
-                Homey.get('logLevel', function(err, logLevel)
-                {
-                    if (err) return Homey.alert(err);
-                    logLevelElement.value = logLevel;
-                });
-
                 Homey.get('diagLog', function(err, diagLog)
                 {
                     if (err) return Homey.alert(err);
                     diagLogElement.value = diagLog;
                 });
+
+                refreshRateStats(Homey);
+            });
+
+            Homey.on('pushEventRateStatsUpdated', function(stats)
+            {
+                applyRateStats(stats);
             });
 
             saveButtonElement.addEventListener('click', function()
@@ -130,7 +389,7 @@
                             }
                             else
                             {
-                                Homey.alert("Saved successfully");
+                                Homey.alert(i18nText.saveSuccess);
                             }
                     }
                 });
@@ -141,6 +400,16 @@
                 Homey.set('logLevel', logLevelElement.value, function(err)
                 {
                     if (err) return Homey.alert(err);
+                });
+            });
+
+            clearPeakButtonElement.addEventListener('click', function(e)
+            {
+                Homey.api('POST', '/clearPeakRate/', null, function(err, stats)
+                {
+                    if (err) return Homey.alert(err);
+                    var safeStats = stats && typeof stats === 'object' ? stats : {};
+                    applyRateStats(safeStats);
                 });
             });
 
@@ -155,7 +424,7 @@
 
             sendLogElement.addEventListener('click', function(e)
             {
-                Homey.confirm("Send the log contents to the developer?", null, function(e, ok)
+                Homey.confirm(i18nText.sendLogConfirm, null, function(e, ok)
                 {
                     if (ok)
                     {
@@ -172,7 +441,7 @@
                             }
                             else
                             {
-                                Homey.alert("Log sent successfully");
+                                Homey.alert(i18nText.sendLogSuccess);
                             }
                             waitCursor(false);
                         });
@@ -209,7 +478,7 @@
                 Homey.get('logLevel', function(err, logLevel)
                 {
                     if (err) return Homey.alert(err);
-                    logLevelElement.value = logLevel;
+                    logLevelElement.value = String(logLevel);
                 });
 
                 Homey.get('diagLog', function(err, diagLog)
@@ -230,6 +499,10 @@
                     if (err) return Homey.alert(err);
                     portElement.value = port;
                 });
+            }
+            else if (tabPage == 'statistics')
+            {
+                refreshRateStats(Homey);
             }
         }
 

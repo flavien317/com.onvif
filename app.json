@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "com.onvif",
-  "version": "2.0.50",
+  "version": "2.0.70",
   "compatibility": ">=7.4.1",
   "platforms": [
     "local"
@@ -12,10 +12,12 @@
     "en": "ONVIF Camera",
     "de": "ONVIF Kamera",
     "nl": "ONVIF Camera",
-    "it": "ONVIF Camera"
+    "it": "ONVIF Camera",
+    "fr": "Caméra ONVIF"
   },
   "description": {
-    "en": "Use an ONVIF compatible camera so Homey can improve your home security"
+    "en": "Use an ONVIF compatible camera so Homey can improve your home security",
+    "fr": "Utilisez une caméra compatible ONVIF pour améliorer la sécurité de votre maison avec Homey"
   },
   "category": [
     "video"
@@ -43,6 +45,11 @@
     "email": "ady@rockall.plus.com"
   },
   "contributors": {
+    "developers": [
+      {
+        "name": "Flavien317"
+      }
+    ],
     "translators": [
       {
         "name": "🇩🇪 - Markus Mahr"
@@ -52,6 +59,9 @@
       },
       {
         "name": "it - Andrea Mascioni"
+      },
+      {
+        "name": "fr - Flavien317"
       }
     ]
   },
@@ -59,6 +69,14 @@
     "sendLog": {
       "method": "post",
       "path": "/sendLog/"
+    },
+    "getRateStats": {
+      "method": "get",
+      "path": "/getRateStats/"
+    },
+    "clearPeakRate": {
+      "method": "post",
+      "path": "/clearPeakRate/"
     }
   },
   "flow": {
@@ -182,7 +200,20 @@
       },
       {
         "title": {
-          "en": "The vistor detected alarm turned on"
+          "en": "The visitor detected alarm turned on"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=camera&capabilities=alarm_visitor"
+          }
+        ],
+        "id": "alarm_visitor_true"
+      },
+      {
+        "title": {
+          "en": "The visitor detected alarm turned on"
         },
         "args": [
           {
@@ -334,13 +365,15 @@
           "en": "Motion is enabled",
           "de": "Bewegung ist eingeschaltet",
           "nl": "Beweging is actief",
-          "it": "Movimento è abilitato"
+          "it": "Movimento è abilitato",
+          "fr": "La detection de mouvement est activée"
         },
         "titleFormatted": {
           "en": "Motion is !{{enabled|disabled}}",
           "de": "Bewegung ist !{{eingeschaltet|abgeschaltet}}",
           "nl": "Beweging is !{{actief|inactief}}",
-          "it": "Movimento è !{{abilitato|disabilitato}}"
+          "it": "Movimento è !{{abilitato|disabilitato}}",
+          "fr": "La detection de mouvement est !{{activée|désativée}}"
         },
         "args": [
           {
@@ -356,13 +389,15 @@
           "en": "Motion snapshot is ready within...",
           "de": "Bewegungsschnappschuss ist innerhalb von ...",
           "nl": "Bewegings snapshot is klaar binnen ...",
-          "it": "L'istantanea in movimento è pronta entro ..."
+          "it": "L'istantanea in movimento è pronta entro ...",
+          "fr": "L'image du mouvement sera prête dans..."
         },
         "titleFormatted": {
           "en": "Motion snapshot is !{{ready|not ready}} within [[waitTime]] seconds",
           "de": "Der Bewegungsschnappschuss ist !{{innerhalb|nicht innerhalb}} von [[waitTime]] Sekunden fertig",
           "nl": "Bewegingssnapshot is !{{binnen|niet binnen}} [[waitTime]] seconden !((klaar|gereed}}",
-          "it": "L'istantanea in movimento !{{è pronta|non è pronta}} entro [[waitTime]] secondi"
+          "it": "L'istantanea in movimento !{{è pronta|non è pronta}} entro [[waitTime]] secondi",
+          "fr": "L'image du mouvement sera !{{prête|pas prête}} dans [[waitTime]] secondes..."
         },
         "args": [
           {
@@ -387,17 +422,56 @@
     ],
     "actions": [
       {
+        "id": "goto_preset",
+        "title": {
+          "en": "Go to preset position",
+          "fr": "Aller à la position préréglée"
+        },
+        "titleFormatted": {
+          "en": "Go to preset [[preset]]",
+          "fr": "Aller à la position préréglée [[preset]]"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=camera",
+            "title": {
+              "en": "Camera",
+              "fr": "Caméra"
+            }
+          },
+          {
+            "name": "preset",
+            "type": "number",
+            "title": {
+              "en": "Preset number",
+              "fr": "Numéro de position"
+            },
+            "placeholder": {
+              "en": "Enter preset number",
+              "fr": "Entrer le numéro de position"
+            },
+            "min": 0,
+            "max": 255,
+            "step": 1
+          }
+        ]
+      },
+      {
         "title": {
           "en": "Disable motion",
           "de": "Bewegung abschalten",
           "nl": "Beweging inactief",
-          "it": "Movimento Disabilitato"
+          "it": "Movimento Disabilitato",
+          "fr": "Désactiver la détection de mouvement"
         },
         "titleFormatted": {
           "en": "Disable motion",
           "de": "Bewegung abschalten",
           "nl": "Beweging inactief",
-          "it": "Movimento Disabilitato"
+          "it": "Movimento Disabilitato",
+          "fr": "Désactiver la détection de mouvement"
         },
         "args": [
           {
@@ -413,13 +487,15 @@
           "en": "Enable motion",
           "de": "Bewegung einschalten",
           "nl": "Beweging actief",
-          "it": "Movimento Abilitato"
+          "it": "Movimento Abilitato",
+          "fr": "Activer la détection de mouvement"
         },
         "titleFormatted": {
           "en": "Enable motion",
           "de": "Bewegung einschalten",
           "nl": "Beweging actief",
-          "it": "Movimento Abilitato"
+          "it": "Movimento Abilitato",
+          "fr": "Activer la détection de mouvement"
         },
         "args": [
           {
@@ -435,13 +511,15 @@
           "en": "Update snapshot",
           "de": "Standbild jetzt erneuern",
           "nl": "Ververs snapshot",
-          "it": "Aggiorna Immagine Istantanea"
+          "it": "Aggiorna Immagine Istantanea",
+          "fr": "Mettre à jour l'image"
         },
         "titleFormatted": {
           "en": "Update snapshot",
           "de": "Standbild jetzt erneuern",
           "nl": "Ververs snapshot",
-          "it": "Aggiorna Immagine Istantanea"
+          "it": "Aggiorna Immagine Istantanea",
+          "fr": "Mettre à jour l'image"
         },
         "args": [
           {
@@ -457,13 +535,15 @@
           "en": "Update Motion snapshot",
           "de": "Motion-Snapshot aktualisieren",
           "nl": "Bewegingssnapshot bijwerken",
-          "it": "Aggiorna istantanea in movimento"
+          "it": "Aggiorna istantanea in movimento",
+          "fr": "Mettre à jour l'image de mouvement"
         },
         "titleFormatted": {
           "en": "Update Motion snapshot",
           "de": "Motion-Snapshot aktualisieren",
           "nl": "Bewegingssnapshot bijwerken",
-          "it": "Aggiorna istantanea in movimento"
+          "it": "Aggiorna istantanea in movimento",
+          "fr": "Mettre à jour l'image de mouvement"
         },
         "args": [
           {
@@ -493,6 +573,7 @@
       "class": "sensor",
       "capabilities": [
         "motion_enabled",
+        "ptz_preset",
         "alarm_motion",
         "alarm_sound",
         "alarm_tamper",
@@ -842,6 +923,187 @@
         {
           "type": "group",
           "label": {
+            "en": "Events to show (You can hide the items that are not supported by your camera)",
+            "de": "Anzuzeigende Ereignisse (Sie können die Elemente ausblenden, die von Ihrer Kamera nicht unterstützt werden)",
+            "nl": "Te tonen gebeurtenissen (U kunt de items verbergen die niet door uw camera worden ondersteund)",
+            "it": "Eventi da mostrare (È possibile nascondere gli elementi non supportati dalla fotocamera)"
+          },
+          "children": [
+            {
+              "id": "line_crossed",
+              "type": "checkbox",
+              "label": {
+                "en": "Line Crossed",
+                "de": "Linie überquert",
+                "nl": "Lijn gekruist",
+                "it": "Linea attraversata"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the line crossed event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Linie überquert\" sichtbar.",
+                "nl": "Indien aangevinkt is de lijn gekruist gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Linea attraversata è visibile."
+              }
+            },
+            {
+              "id": "person",
+              "type": "checkbox",
+              "label": {
+                "en": "Person detected",
+                "de": "Person erkannt",
+                "nl": "Persoon gedetecteerd",
+                "it": "Persona rilevata"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the person detected event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Person erkannt\" sichtbar.",
+                "nl": "Indien aangevinkt is de persoon gedetecteerd gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Persona rilevata è visibile."
+              }
+            },
+            {
+              "id": "visitor",
+              "type": "checkbox",
+              "label": {
+                "en": "Visitor detected",
+                "de": "Besucher erkannt",
+                "nl": "Bezoeker gedetecteerd",
+                "it": "Visitatore rilevato"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the visitor detected event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Besucher erkannt\" sichtbar.",
+                "nl": "Indien aangevinkt is de bezoeker gedetecteerd gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Visitatore rilevato è visibile."
+              }
+            },
+            {
+              "id": "face",
+              "type": "checkbox",
+              "label": {
+                "en": "Face detected",
+                "de": "Gesicht erkannt",
+                "nl": "Gezicht gedetecteerd",
+                "it": "Volto rilevato"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the face detected event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Gesicht erkannt\" sichtbar.",
+                "nl": "Indien aangevinkt is de gezicht gedetecteerd gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Volto rilevato è visibile."
+              }
+            },
+            {
+              "id": "dog_cat",
+              "type": "checkbox",
+              "label": {
+                "en": "Dog or Cat detected",
+                "de": "Hund oder Katze erkannt",
+                "nl": "Hond of Kat gedetecteerd",
+                "it": "Cane o Gatto rilevato"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the dog or cat detected event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Hund oder Katze erkannt\" sichtbar.",
+                "nl": "Indien aangevinkt is de hond of kat gedetecteerd gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Cane o Gatto rilevato è visibile."
+              }
+            },
+            {
+              "id": "vehicle",
+              "type": "checkbox",
+              "label": {
+                "en": "Vehicle detected",
+                "de": "Fahrzeug erkannt",
+                "nl": "Voertuig gedetecteerd",
+                "it": "Veicolo rilevato"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the vehicle detected event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Fahrzeug erkannt\" sichtbar.",
+                "nl": "Indien aangevinkt is de voertuig gedetecteerd gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Veicolo rilevato è visibile."
+              }
+            },
+            {
+              "id": "dark_image",
+              "type": "checkbox",
+              "label": {
+                "en": "Dark Image",
+                "de": "Dunkles Bild",
+                "nl": "Donker beeld",
+                "it": "Immagine scura"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the dark image event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Dunkles Bild\" sichtbar.",
+                "nl": "Indien aangevinkt is de donker beeld gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Immagine scura è visibile."
+              }
+            },
+            {
+              "id": "storage",
+              "type": "checkbox",
+              "label": {
+                "en": "Storage",
+                "de": "Speicher",
+                "nl": "Opslag",
+                "it": "Memoria"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the storage event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Speicher\" sichtbar.",
+                "nl": "Indien aangevinkt is de opslag gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Memoria è visibile."
+              }
+            },
+            {
+              "id": "cpu",
+              "type": "checkbox",
+              "label": {
+                "en": "CPU Usage",
+                "de": "CPU-Auslastung",
+                "nl": "CPU-gebruik",
+                "it": "Utilizzo CPU"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the CPU usage event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"CPU-Auslastung\" sichtbar.",
+                "nl": "Indien aangevinkt is de CPU-gebruik gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Utilizzo CPU è visibile."
+              }
+            },
+            {
+              "id": "sound",
+              "type": "checkbox",
+              "label": {
+                "en": "Sound",
+                "de": "Ton",
+                "nl": "Geluid",
+                "it": "Suono"
+              },
+              "value": true,
+              "hint": {
+                "en": "When ticked the sound event is visible.",
+                "de": "Wenn aktiviert, ist das Ereignis \"Ton\" sichtbar.",
+                "nl": "Indien aangevinkt is de geluid gebeurtenis zichtbaar.",
+                "it": "Quando selezionato, l'evento Suono è visibile."
+              }
+            }
+          ]
+        },
+        {
+          "type": "group",
+          "label": {
             "en": "Camera Information",
             "de": "Kamera Informationen",
             "nl": "Camera informatie",
@@ -1006,6 +1268,40 @@
                 "de": "Eine alternative Snapshot-URL, die die erkannte überschreibt.\nCLassen Sie das Feld leer, um die erkannte URL zu verwenden.",
                 "nl": "Een alternatieve snapshot-URL die de gedetecteerde URL overschrijft.\nLaat het veld leeg om de gedetecteerde URL te gebruiken.",
                 "it": "Un URL di istantanea alternativo che sostituisce quello rilevato.\nLascia il campo vuoto per utilizzare l'URL rilevato."
+              }
+            },
+            {
+              "id": "urlLive",
+              "type": "label",
+              "label": {
+                "en": "ONVIF Live Stream URL",
+                "de": "ONVIF Live-Stream-URL",
+                "nl": "ONVIF live stream URL",
+                "it": "ONVIF Live Stream URL"
+              },
+              "value": "",
+              "hint": {
+                "en": "The live stream URL that is reported by the camera.",
+                "de": "Die Live-Stream-URL, die von der Kamera gemeldet wird.",
+                "nl": "De live stream URL die door de camera wordt gerapporteerd.",
+                "it": "L'URL del live stream segnalato dalla telecamera."
+              }
+            },
+            {
+              "id": "userLiveUri",
+              "type": "text",
+              "label": {
+                "en": "USER Live Stream URL",
+                "de": "USER Live-Stream-URL",
+                "nl": "USER live stream URL",
+                "it": "USER Live Stream URL"
+              },
+              "value": "",
+              "hint": {
+                "en": "An alternative live stream URL that overrides the detected one.\nLeave the field blank to use the detected URL.",
+                "de": "Eine alternative Live-Stream-URL, die die erkannte überschreibt.\nCLassen Sie das Feld leer, um die erkannte URL zu verwenden.",
+                "nl": "Een alternatieve live stream URL die de gedetecteerde URL overschrijft.\nLaat het veld leeg om de gedetecteerde URL te gebruiken.",
+                "it": "Un URL di live stream alternativo che sostituisce quello rilevato.\nLascia il campo vuoto per utilizzare l'URL rilevato."
               }
             },
             {
@@ -1222,7 +1518,7 @@
     "alarm_visitor": {
       "type": "boolean",
       "title": {
-        "en": "Vistor Detected"
+        "en": "Visitor Detected"
       },
       "insights": true,
       "insightsTitleTrue": {
@@ -1278,6 +1574,35 @@
       "setable": true,
       "uiComponent": "toggle",
       "icon": "/assets/motion.svg"
+    },
+    "ptz_preset": {
+      "type": "enum",
+      "title": {
+        "en": "PTZ Preset",
+        "nl": "PTZ Voorkeuze",
+        "de": "PTZ Voreinstellung",
+        "it": "Posizione preimpostata PTZ",
+        "fr": "Position préréglée PTZ",
+        "es": "Posición preestablecida PTZ",
+        "pt": "Posição predefinida PTZ",
+        "pl": "Ustawienie wstępne PTZ",
+        "ko": "PTZ 프리셋"
+      },
+      "desc": {
+        "en": "Move camera to saved preset position",
+        "nl": "Verplaats de camera naar een opgeslagen voorkeuzepositie",
+        "de": "Bewegen Sie die Kamera an eine gespeicherte Voreinstellposition",
+        "it": "Sposta la telecamera nella posizione preimpostata salvata",
+        "fr": "Déplacer la caméra vers une position préréglée",
+        "es": "Mover la cámara a una posición preestablecida guardada",
+        "pt": "Mover a câmera para a posição predefinida salva",
+        "pl": "Przesuń kamerę do zapisanej pozycji wstępnej",
+        "ko": "저장된 프리셋 위치로 카메라 이동"
+      },
+      "values": [],
+      "getable": true,
+      "setable": true,
+      "uiComponent": "picker"
     },
     "tamper_time": {
       "type": "string",

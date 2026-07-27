@@ -3,9 +3,8 @@
 'use strict';
 
 // eslint-disable-next-line no-undef
-if (process.env.DEBUG === '1')
-{
-    require('inspector').open(9225, '0.0.0.0', false);
+if (process.env.DEBUG === '1') {
+	require('inspector').open(9225, '0.0.0.0', true);
 }
 
 const Homey = require('homey');
@@ -18,46 +17,93 @@ const nodemailer = require('./lib/nodemailer');
 
 const http = require('http');
 const { promisify } = require('util');
+
+const PUSH_EVENT_WINDOW_MS = 5000;
+const MAX_PUSH_EVENTS_PER_WINDOW = 100;
+const PUSH_EVENT_WARNING_INTERVAL_MS = 30000;
+const PUSH_EVENT_RATE_LOG_INTERVAL_MS = 10000;
+const PUSH_EVENT_RATE_HISTORY_MAX = 10;
+
 class MyApp extends Homey.App
 {
+    resolvePushServerPort(portValue)
+    {
+        const parsedPort = Number.parseInt(portValue, 10);
+        const isValid = Number.isInteger(parsedPort) && (parsedPort >= 1) && (parsedPort <= 65535);
+        return {
+            port: isValid ? parsedPort : 9998,
+            isValid
+        };
+    }
+
+    listenPushServer(portValue = this.pushServerPort)
+    {
+        const { port, isValid } = this.resolvePushServerPort(portValue);
+
+        if (!isValid)
+        {
+            this.updateLog('Invalid push server port value: ' + this.varToString(portValue) + '. Falling back to ' + port, 0);
+        }
+
+        this.pushServerPort = port;
+        this.server.listen(this.pushServerPort);
+    }
+
+    getConfiguredLogLevel()
+    {
+        const configuredLogLevel = Number(this.homey.settings.get('logLevel'));
+        return Number.isFinite(configuredLogLevel) ? configuredLogLevel : 1;
+    }
 
     async onInit()
     {
         this.log('MyApp is running...');
+        this.err = (err) => this.error(err);
 
-        this.pushServerPort = this.homey.settings.get('port');
-        if (!this.pushServerPort)
+        const configuredPushPort = this.resolvePushServerPort(this.homey.settings.get('port'));
+        this.pushServerPort = configuredPushPort.port;
+        if (!configuredPushPort.isValid)
         {
-            this.pushServerPort = 9998;
-            this.homey.settings.set('port', 9998);
+            this.homey.settings.set('port', this.pushServerPort);
         }
 
         this.discoveredDevices = [];
         this.discoveryInitialised = false;
+        this.pushEventFloodState = new Map();
+        this.pushEventRateCounter = 0;
+        this.pushEventRateByCameraMap = new Map();
+        this.pushEventRateLast = this.homey.settings.get('pushEventRateLast') || null;
+        const savedRateHistory = this.homey.settings.get('pushEventRateHistory');
+        this.pushEventRateHistory = Array.isArray(savedRateHistory) ? savedRateHistory : [];
+        this.pushEventPeakRate = this.homey.settings.get('pushEventPeakRate') || {};
+        this.pushEventRateDirty = false;
+        this.pushEventRateInterval = null;
         //this.homey.settings.set('diagLog', "");
 
         this.homeyId = await this.homey.cloud.getHomeyId();
         this.homeyHash = this.hashCode(this.homeyId).toString();
 
-        this.homeyIP = await this.homey.cloud.getLocalAddress();
-        this.homeyIP = (this.homeyIP.split(':'))[0];
-
+        this.homeyIP = null;
         this.pushEvents = [];
 
-        this.logLevel = this.homey.settings.get('logLevel');
+        this.logLevel = this.getConfiguredLogLevel();
+        this.startPushEventRateLogging();
 
         this.homey.settings.on('set', (setting) =>
         {
             if (setting === 'logLevel')
             {
-                this.logLevel = this.homey.settings.get('logLevel');
+                this.logLevel = this.getConfiguredLogLevel();
             }
             if (setting == 'port')
             {
                 this.pushServerPort = this.homey.settings.get('port');
                 this.unregisterCameras();
-                this.server.close();
-                this.server.listen(this.pushServerPort);
+                if (this.server)
+                {
+                    this.server.close();
+                    this.listenPushServer();
+                }
             }
         });
 
@@ -75,11 +121,13 @@ class MyApp extends Homey.App
 
         setImmediate(() =>
         {
-            this.checkCameras();
+            this.resolveHomeyIP().then(() => this.checkCameras()).catch(this.err);
         });
 
         this.homey.on('unload', () =>
         {
+            this.stopPushEventRateLogging();
+            this.persistPushEventStats();
             if (this.server)
             {
                 this.server.close();
@@ -90,6 +138,7 @@ class MyApp extends Homey.App
 
         this.homey.on('memwarn', (data) =>
         {
+            this.persistPushEventStats();
             if (data)
             {
                 if (data.count >= data.limit - 2)
@@ -106,6 +155,7 @@ class MyApp extends Homey.App
 
         this.homey.on('cpuwarn', (data) =>
         {
+            this.persistPushEventStats();
             if (data)
             {
                 if (data.count >= data.limit - 2)
@@ -121,7 +171,7 @@ class MyApp extends Homey.App
                         setTimeout(() =>
                         {
                             this.server.close();
-                            this.server.listen(this.pushServerPort);
+                            this.listenPushServer();
                         }, 300000);
                     }
                 }
@@ -132,6 +182,33 @@ class MyApp extends Homey.App
                 this.updateLog('cpuwarn', 0);
             }
         });
+    }
+
+    async resolveHomeyIP()
+    {
+        const RETRY_DELAYS_MS = [5000, 10000, 30000, 60000];
+        const MAX_RETRY_DELAY_MS = 120000;
+
+        let attempt = 0;
+        while (true)
+        {
+            try
+            {
+                const addr = await this.homey.cloud.getLocalAddress();
+                this.homeyIP = (addr.split(':'))[0];
+                this.updateLog(`Homey local IP resolved: ${this.homeyIP}`, 1);
+                return;
+            }
+            catch (err)
+            {
+                const delay = attempt < RETRY_DELAYS_MS.length
+                    ? RETRY_DELAYS_MS[attempt]
+                    : MAX_RETRY_DELAY_MS;
+                this.error(`Failed to get local address (attempt ${attempt + 1}), retrying in ${delay / 1000}s:`, err.message);
+                await new Promise(resolve => this.homey.setTimeout(resolve, delay));
+                attempt++;
+            }
+        }
     }
 
     async registerFlowCard()
@@ -159,7 +236,7 @@ class MyApp extends Homey.App
         this.motionEnabledAction.registerRunListener(async (args, state) =>
         {
             console.log('motionEnabledAction');
-            args.device.onCapabilityMotionEnable(true, null);
+            await args.device.onCapabilityMotionEnable(true, null);
             return await args.device.setCapabilityValue('motion_enabled', true); // Promise<void>
         });
 
@@ -168,7 +245,7 @@ class MyApp extends Homey.App
         {
 
             console.log('motionDisabledAction');
-            args.device.onCapabilityMotionEnable(false, null);
+            await args.device.onCapabilityMotionEnable(false, null);
             return await args.device.setCapabilityValue('motion_enabled', false); // Promise<void>
         });
 
@@ -186,7 +263,7 @@ class MyApp extends Homey.App
                 args.device.driver.snapshotReadyTrigger
                     .trigger(args.device, tokens)
                     .catch(args.device.error)
-                    .then(args.device.log('Now Snapshot ready (' + args.device.id + ')'));
+					.then(() => args.device.log('Now Snapshot ready (' + args.device.id + ')'));
             }
             return err;
         });
@@ -196,6 +273,15 @@ class MyApp extends Homey.App
         {
             return args.device.updateMotionImage(0);
         });
+
+		// Add action trigger for presets
+		this.gotoPresetAction = this.homey.flow.getActionCard('goto_preset')
+			.registerRunListener(async (args, state) =>
+			{
+				const device = args.device;
+				const presetNumber = args.preset;
+				return device.gotoPresetNumber(presetNumber);
+			});
 
         this.motionTrigger = this.homey.flow.getTriggerCard('global_motion_detected');
 
@@ -234,72 +320,82 @@ class MyApp extends Homey.App
     {
         parseSOAPString(soapMsg, (err, res, xml) =>
         {
-            if (!err && res)
+            try
             {
-                let data = linerase(res).notify;
-
-                if (data && data.notificationMessage)
+                if (!err && res)
                 {
-                    if (!Array.isArray(data.notificationMessage))
-                    {
-                        data.notificationMessage = [data.notificationMessage];
-                    }
+                    let data = linerase(res).notify;
 
-                    let messageToken = this.getMessageToken(data.notificationMessage[0].message.message);
-                    this.updateLog(`Push event token: ${messageToken}`, 1);
-
-                    // Find the referenced device
-                    const driver = this.homey.drivers.getDriver('camera');
-                    let theDevice = null;
-                    if (driver)
+                    if (data && data.notificationMessage)
                     {
-                        let devices = driver.getDevices();
-                        for (let i = 0; i < devices.length; i++)
+                        if (!Array.isArray(data.notificationMessage))
                         {
-                            let device = devices[i];
-                            if (device.ip == eventIP)
+                            data.notificationMessage = [data.notificationMessage];
+                        }
+
+                        let messageToken = this.getMessageToken(data.notificationMessage[0].message.message);
+                        this.updateLog(`Push event token: ${messageToken}`, 1);
+
+                        // Find the referenced device
+                        const driver = this.homey.drivers.getDriver('camera');
+                        let theDevice = null;
+                        if (driver)
+                        {
+                            let devices = driver.getDevices();
+                            for (let i = 0; i < devices.length; i++)
                             {
-                                // Correct IP so check the token for multiple cameras on this IP
-                                if (!device.token || !messageToken || (messageToken == device.token))
+                                let device = devices[i];
+                                if (device.ip == eventIP)
                                 {
-                                    theDevice = device;
-                                    if (this.logLevel >= 2)
+                                    // Correct IP so check the token for multiple cameras on this IP
+                                    if (!device.token || !messageToken || (messageToken == device.token))
                                     {
-                                        this.updateLog('Push Event found correct Device: ' + device.token);
+                                        theDevice = device;
+                                        if (this.logLevel >= 2)
+                                        {
+                                            this.updateLog('Push Event found correct Device: ' + device.token);
+                                        }
+                                        break;
                                     }
-                                    break;
-                                }
-                                else
-                                {
-                                    if (this.logLevel >= 2)
+                                    else
                                     {
-                                        this.updateLog('Wrong channel token');
+                                        if (this.logLevel >= 2)
+                                        {
+                                            this.updateLog('Wrong channel token');
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    if (theDevice)
-                    {
-                        data.notificationMessage.forEach((message) =>
+                        if (theDevice)
                         {
-                            if (this.logLevel >= 2)
+                            data.notificationMessage.forEach((message) =>
                             {
-                                this.updateLog('Push Event process: ' + this.varToString(message));
-                            }
-                            theDevice.processCamEventMessage(message);
-                        });
-                    }
-                    else
-                    {
-                        this.updateLog('Push Event unknown Device: ' + eventIP, 0);
+                                if (this.logLevel >= 2)
+                                {
+                                    this.updateLog('Push Event process: ' + this.varToString(message));
+                                }
+                                theDevice.processCamEventMessage(message).catch((processError) =>
+                                {
+                                    this.updateLog('Push Event process error: ' + this.varToString(processError), 0);
+                                });
+                            });
+                        }
+                        else
+                        {
+                            this.updateLog('Push Event unknown Device: ' + eventIP, 0);
+                        }
                     }
                 }
+                else
+                {
+                    this.updateLog('Push data error: ' + err, 0);
+                }
             }
-            else
+            catch (processErr)
             {
-                this.updateLog('Push data error: ' + err, 0);
+                this.updateLog('Push data processing exception: ' + this.varToString(processErr), 0);
             }
         });
     }
@@ -313,14 +409,18 @@ class MyApp extends Homey.App
             if ((pathParts[1] === 'onvif') && (pathParts[2] === 'events') && request.method === 'POST')
             {
                 let eventIP = pathParts[3];
-                if (request.headers['content-type'].startsWith('application/soap+xml'))
+                const contentType = request.headers['content-type'] || '';
+                if (contentType.startsWith('application/soap+xml'))
                 {
                     let body = '';
+                    let tooLarge = false;
                     request.on('data', chunk =>
                     {
+                        if (tooLarge) return;
                         body += chunk.toString(); // convert Buffer to string
                         if (body.length > 50000)
                         {
+                            tooLarge = true;
                             this.updateLog('Push data error: Payload too large', 0);
                             response.writeHead(413);
                             response.end('Payload Too Large');
@@ -330,10 +430,17 @@ class MyApp extends Homey.App
                     });
                     request.on('end', () =>
                     {
+                        if (tooLarge) return;
                         let soapMsg = body;
                         body = '';
                         response.writeHead(200);
                         response.end('ok');
+                        this.pushEventRateCounter += 1;
+                        this.pushEventRateByCameraMap.set(eventIP, (this.pushEventRateByCameraMap.get(eventIP) || 0) + 1);
+                        if (this.shouldDropPushEvent(eventIP))
+                        {
+                            return;
+                        }
                         if (this.logLevel >= 3)
                         {
                             this.updateLog('Push event: ' + soapMsg, 3);
@@ -342,12 +449,15 @@ class MyApp extends Homey.App
                         {
                             this.updateLog(`Push event: ${eventIP}`, 1);
                         }
-                        this.processEventMessage(soapMsg, eventIP);
+                        this.processEventMessage(soapMsg, eventIP).catch((processError) =>
+                        {
+                            this.updateLog('Push event processing failed: ' + this.varToString(processError), 0);
+                        });
                     });
                 }
                 else
                 {
-                    this.updateLog('Push data invalid content type: ' + request.headers['content-type'], 0);
+                    this.updateLog('Push data invalid content type: ' + contentType, 0);
                     response.writeHead(415);
                     response.end('Unsupported Media Type');
                 }
@@ -369,18 +479,237 @@ class MyApp extends Homey.App
                 setTimeout(() =>
                 {
                     this.server.close();
-                    this.server.listen(this.pushServerPort);
+                    this.listenPushServer();
                 }, 10000);
             }
         });
 
         try
         {
-            this.server.listen(this.pushServerPort);
+            this.listenPushServer();
         }
         catch (err)
         {
             this.log(err);
+        }
+    }
+
+    shouldDropPushEvent(eventIP)
+    {
+        const now = Date.now();
+        const key = eventIP || 'unknown';
+        let state = this.pushEventFloodState.get(key);
+
+        if (!state || ((now - state.windowStartedAt) >= PUSH_EVENT_WINDOW_MS))
+        {
+            if (state && (state.droppedCount > 0))
+            {
+                this.updateLog('Push event flood protection recovered (' + key + '): dropped ' + state.droppedCount + ' push events in the previous window', 0);
+                this.homey.api.realtime('pushEventRateStatsUpdated', this.getRateStats());
+            }
+
+            state = {
+                windowStartedAt: now,
+                count: 0,
+                droppedCount: 0,
+                lastWarningAt: state ? state.lastWarningAt : 0
+            };
+        }
+
+        state.count += 1;
+        this.pushEventFloodState.set(key, state);
+
+        if (state.count <= MAX_PUSH_EVENTS_PER_WINDOW)
+        {
+            return false;
+        }
+
+        const windowElapsedMs = Math.max(1, now - state.windowStartedAt);
+        const eventsPerSecond = (state.count * 1000) / windowElapsedMs;
+
+        if (!state.lastWarningAt || ((now - state.lastWarningAt) >= PUSH_EVENT_WARNING_INTERVAL_MS))
+        {
+            state.lastWarningAt = now;
+            this.updateLog('Push event flood protection active (' + key + '): dropping excess push events (' + state.count + ' events in ' + windowElapsedMs + ' ms, burst rate ' + eventsPerSecond.toFixed(1) + ' events/s)', 0);
+        }
+
+        state.droppedCount += 1;
+
+        if (state.count === (MAX_PUSH_EVENTS_PER_WINDOW + 1))
+        {
+            this.homey.api.realtime('pushEventRateStatsUpdated', this.getRateStats());
+        }
+
+        return true;
+    }
+
+    startPushEventRateLogging()
+    {
+        this.stopPushEventRateLogging();
+        this.pushEventRateCounter = 0;
+        this.pushEventRateByCameraMap.clear();
+
+        this.pushEventRateInterval = this.homey.setInterval(() =>
+        {
+            const eventsInWindow = this.pushEventRateCounter;
+            this.pushEventRateCounter = 0;
+
+            if (eventsInWindow <= 0)
+            {
+                return;
+            }
+
+            const intervalSecs = PUSH_EVENT_RATE_LOG_INTERVAL_MS / 1000;
+            const eventsPerSecond = eventsInWindow / intervalSecs;
+            this.publishPushEventRateStats(eventsInWindow, eventsPerSecond);
+
+            // Check each camera's rate against the stored peak
+            let currentPeak = this.pushEventPeakRate;
+            for (const [ip, count] of this.pushEventRateByCameraMap)
+            {
+                const cameraEps = count / intervalSecs;
+                if (!currentPeak || !Number.isFinite(Number(currentPeak.eventsPerSecond)) || cameraEps > currentPeak.eventsPerSecond)
+                {
+                    currentPeak = {
+                        camera: this.getCameraLabel(ip),
+                        ip: ip,
+                        eventsPerSecond: Number(cameraEps.toFixed(2)),
+                        timestamp: Date.now(),
+                    };
+                    this.pushEventPeakRate = currentPeak;
+                    this.pushEventRateDirty = true;
+                    this.homey.settings.set('pushEventPeakRate', this.pushEventPeakRate || {});
+                }
+            }
+            this.pushEventRateByCameraMap.clear();
+
+            this.updateLog('Push event rate: ' + eventsPerSecond.toFixed(2) + ' events/s over last 10s (' + eventsInWindow + ' events)', 1);
+        }, PUSH_EVENT_RATE_LOG_INTERVAL_MS);
+    }
+
+    publishPushEventRateStats(eventsInWindow, eventsPerSecond)
+    {
+        const sample = {
+            timestamp: Date.now(),
+            eventsInWindow: eventsInWindow,
+            eventsPerSecond: Number(eventsPerSecond.toFixed(2)),
+        };
+
+        this.pushEventRateLast = sample;
+
+        const nextHistory = Array.isArray(this.pushEventRateHistory) ? this.pushEventRateHistory : [];
+        nextHistory.push(sample);
+        if (nextHistory.length > PUSH_EVENT_RATE_HISTORY_MAX)
+        {
+            nextHistory.splice(0, nextHistory.length - PUSH_EVENT_RATE_HISTORY_MAX);
+        }
+        this.pushEventRateHistory = nextHistory;
+        this.pushEventRateDirty = true;
+
+        this.homey.api.realtime('pushEventRateStatsUpdated', this.getRateStats());
+    }
+
+    persistPushEventStats()
+    {
+        if (!this.pushEventRateDirty)
+        {
+            return;
+        }
+
+        this.homey.settings.set('pushEventRateLast', this.pushEventRateLast || {});
+        this.homey.settings.set('pushEventRateHistory', Array.isArray(this.pushEventRateHistory) ? this.pushEventRateHistory : []);
+        this.homey.settings.set('pushEventPeakRate', this.pushEventPeakRate || {});
+        this.pushEventRateDirty = false;
+    }
+
+    getRateStats()
+    {
+        return {
+            lastSample: this.pushEventRateLast || {},
+            history: Array.isArray(this.pushEventRateHistory) ? this.pushEventRateHistory : [],
+            peak: this.pushEventPeakRate || {},
+            throttling: this.getThrottlingStats()
+        };
+    }
+
+    getThrottlingStats()
+    {
+        const now = Date.now();
+        const activeCameras = [];
+
+        for (const [ip, state] of this.pushEventFloodState)
+        {
+            if (!state)
+            {
+                continue;
+            }
+
+            const elapsed = now - state.windowStartedAt;
+            if ((elapsed < 0) || (elapsed >= PUSH_EVENT_WINDOW_MS))
+            {
+                continue;
+            }
+
+            if (state.count > MAX_PUSH_EVENTS_PER_WINDOW)
+            {
+                const windowElapsedMs = Math.max(1, elapsed);
+                const eventsPerSecond = (state.count * 1000) / windowElapsedMs;
+                activeCameras.push({
+                    camera: this.getCameraLabel(ip),
+                    ip: ip,
+                    eventsInWindow: state.count,
+                    droppedInWindow: state.droppedCount,
+                    eventsPerSecond: Number(eventsPerSecond.toFixed(2)),
+                });
+            }
+        }
+
+        return {
+            windowMs: PUSH_EVENT_WINDOW_MS,
+            maxEventsPerWindow: MAX_PUSH_EVENTS_PER_WINDOW,
+            activeCameras: activeCameras,
+        };
+    }
+
+    clearPeakRate()
+    {
+        this.pushEventPeakRate = {};
+        this.pushEventRateDirty = true;
+        const stats = this.getRateStats();
+        this.homey.api.realtime('pushEventRateStatsUpdated', stats);
+        return stats;
+    }
+
+    getCameraLabel(ip)
+    {
+        try
+        {
+            const driver = this.homey.drivers.getDriver('camera');
+            if (driver)
+            {
+                const devices = driver.getDevices();
+                for (const device of devices)
+                {
+                    if (device.cam && device.cam.hostname === ip)
+                    {
+                        return `${device.name} (${ip})`;
+                    }
+                }
+            }
+        }
+        catch (err)
+        {
+            // ignore — fall through to raw IP
+        }
+        return ip || 'unknown';
+    }
+
+    stopPushEventRateLogging()
+    {
+        if (this.pushEventRateInterval)
+        {
+            clearInterval(this.pushEventRateInterval);
+            this.pushEventRateInterval = null;
         }
     }
 
@@ -475,18 +804,49 @@ class MyApp extends Homey.App
         this.updateLog('--------------------------');
         this.updateLog('Connect to Camera ' + hostname + ':' + port + ' - ' + username);
 
+        const parsedPort = Number.parseInt(port, 10);
+        const configuredPort = Number.isFinite(parsedPort) && (parsedPort > 0) ? parsedPort : 80;
+
+        const createStageError = (stage, err, attempt) =>
+        {
+            const protocol = attempt.useSecure ? 'https' : 'http';
+            const errorCode = err?.code || 'NO_CODE';
+            const errorMessage = err?.message || this.varToString(err);
+            const wrappedError = new Error(stage + ' failed (' + hostname + ':' + attempt.port + ', ' + protocol + ') [' + errorCode + ']: ' + errorMessage);
+            wrappedError.code = err?.code;
+            wrappedError.stage = stage;
+            wrappedError.useSecure = attempt.useSecure;
+            wrappedError.port = attempt.port;
+            return wrappedError;
+        };
+
+        const attempt = { port: configuredPort, useSecure: false };
+        const protocol = attempt.useSecure ? 'https' : 'http';
+
         const camObj = new Cam(
             {
                 homeyApp: this.homey,
                 hostname: hostname,
                 username: username,
                 password: password,
-                port: parseInt(port),
+                port: attempt.port,
                 timeout: 15000,
                 autoconnect: false,
+                useSecure: attempt.useSecure,
+                secureOpts: attempt.useSecure ? { rejectUnauthorized: false } : undefined,
             });
 
-        // Use Promisify that was added to Node v8
+        // Attach an error handler immediately so low-level connection failures
+        // (for example ECONNREFUSED) never become unhandled EventEmitter errors.
+        camObj.on('error', (err, xml) =>
+        {
+            const errorCode = err?.code || 'NO_CODE';
+            this.updateLog('Camera socket error (' + hostname + ':' + attempt.port + ', ' + protocol + ') [' + errorCode + ']: ' + this.varToString(err), 0);
+            if (xml)
+            {
+                this.updateLog('Camera socket error xml: ' + this.varToString(xml), 3);
+            }
+        });
 
         const promiseGetSystemDateAndTime = promisify(camObj.getSystemDateAndTime).bind(camObj);
         const promiseGetServices = promisify(camObj.getServices).bind(camObj);
@@ -497,49 +857,73 @@ class MyApp extends Homey.App
 
         // Use Promisify to convert ONVIF Library calls into Promises.
         // Date & Time must work before anything else
-        await promiseGetSystemDateAndTime();
-
-        // Services can live without
-        let gotServices = null;
         try
         {
-            gotServices = await promiseGetServices();
+            await promiseGetSystemDateAndTime();
         }
         catch (err)
         {
-            this.updateLog('Error getting services: ' + err.message, 0);
+            const stagedError = createStageError('getSystemDateAndTime', err, attempt);
+            this.updateLog('Connect stage error: ' + stagedError.message, 0);
+            throw stagedError;
+        }
+
+        // Services can live without
+        try
+        {
+            await promiseGetServices();
+        }
+        catch (err)
+        {
+            this.updateLog('Error getting services [' + (err?.code || 'NO_CODE') + ']: ' + err.message, 0);
         }
 
         // Must have capabilities
-        let gotCapabilities = await promiseGetCapabilities();
-
-        // Must have device information
-        let gotInfo = await promiseGetDeviceInformation();
-
-        // Profiles are optional
-        let gotProfiles = [];
-        let gotActiveSources = [];
         try
         {
-            gotProfiles = await promiseGetProfiles();
+            await promiseGetCapabilities();
         }
         catch (err)
         {
-            this.updateLog('Error getting profiles: ' + err.message, 0);
+            const stagedError = createStageError('getCapabilities', err, attempt);
+            this.updateLog('Connect stage error: ' + stagedError.message, 0);
+            throw stagedError;
+        }
+
+        // Must have device information
+        try
+        {
+            await promiseGetDeviceInformation();
+        }
+        catch (err)
+        {
+            const stagedError = createStageError('getDeviceInformation', err, attempt);
+            this.updateLog('Connect stage error: ' + stagedError.message, 0);
+            throw stagedError;
+        }
+
+        // Profiles are optional
+        try
+        {
+            await promiseGetProfiles();
+        }
+        catch (err)
+        {
+            this.updateLog('Error getting profiles [' + (err?.code || 'NO_CODE') + ']: ' + err.message, 0);
         }
 
         // Video sources are optional
         try
         {
             await promiseGetVideoSources();
-            gotActiveSources = camObj.getActiveSources();
+            camObj.getActiveSources();
         }
         catch (err)
         {
-            this.updateLog('Error getting video sources: ' + err.message, 0);
+            this.updateLog('Error getting video sources [' + (err?.code || 'NO_CODE') + ']: ' + err.message, 0);
         }
 
-        return (camObj);
+        return camObj;
     }
 
     async checkCameras()
@@ -633,11 +1017,51 @@ class MyApp extends Homey.App
         return promiseGetSnapshotUri();
     }
 
+	async getStreamURL(camObj, profileToken)
+	{
+		const promiseGetStreamUri = promisify(camObj.getStreamUri).bind(camObj);
+
+        const normalizeEncoding = (value) => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const isH265 = (value) =>
+        {
+            const encoding = normalizeEncoding(value);
+            return encoding === 'H265' || encoding === 'HEVC';
+        };
+        const isH264 = (value) =>
+        {
+            const encoding = normalizeEncoding(value);
+            return encoding === 'H264' || encoding === 'AVC';
+        };
+
+        if (profileToken)
+        {
+            return promiseGetStreamUri({ profileToken: String(profileToken) });
+        }
+
+        const activeSourceEncoding = camObj?.activeSource?.encoding;
+        if (!isH265(activeSourceEncoding))
+        {
+            return promiseGetStreamUri({});
+        }
+
+        const activeSources = Array.isArray(camObj?.activeSources) ? camObj.activeSources : [];
+        const h264Source = activeSources.find((source) => isH264(source?.encoding) && source?.profileToken);
+
+        if (h264Source)
+        {
+            this.updateLog('Primary stream is H265/HEVC, switching to H264 profile token for Homey live view');
+            return promiseGetStreamUri({ profileToken: String(h264Source.profileToken) });
+        }
+
+        this.updateLog('Primary stream is H265/HEVC and no H264 alternate profile was found; using primary stream', 0);
+        return promiseGetStreamUri({});
+	}
+
     async hasEventTopics(camObj)
     {
         const promiseGetSnapshotUri = promisify(camObj.getEventProperties).bind(camObj);
         const data = await promiseGetSnapshotUri();
-        let supportedEvents = [];
+        const supportedEvents = new Set();
         // Display the available Topics
         let parseNode = (node, topicPath, nodeName) =>
         {
@@ -651,7 +1075,16 @@ class MyApp extends Homey.App
                 else if (child == 'messageDescription')
                 {
                     // we have found the details that go with an event
-                    supportedEvents.push(nodeName.toUpperCase());
+                    const normalizedNodeName = String(nodeName || '').toUpperCase();
+                    const normalizedTopicPath = String(topicPath || '').replace(/^\//, '').toUpperCase();
+                    if (normalizedNodeName)
+                    {
+                        supportedEvents.add(normalizedNodeName);
+                    }
+                    if (normalizedTopicPath)
+                    {
+                        supportedEvents.add(normalizedTopicPath);
+                    }
                     return;
                 }
                 else
@@ -662,7 +1095,7 @@ class MyApp extends Homey.App
             }
         };
         parseNode(data.topicSet, '', '');
-        return (supportedEvents);
+        return Array.from(supportedEvents);
     }
 
     async subscribeToCamPushEvents(Device)
@@ -756,6 +1189,12 @@ class MyApp extends Homey.App
             }
             else
             {
+                if (!this.homeyIP)
+                {
+                    reject(new Error('Homey local IP address is unavailable (unknown_network_interface); push events cannot be set up'));
+                    return;
+                }
+
                 // const url = "http://" + this.homeyIP + ":" + this.pushServerPort + "/onvif/events?deviceId=" + Device.cam.hostname;
                 const hostPath = Device.cam.hostname;
 
@@ -876,7 +1315,7 @@ class MyApp extends Homey.App
                         }
                         resolve(null);
                         return;
-                    });
+                });
 
                     Device.cam.removeAllListeners('event');
 
@@ -1126,9 +1565,35 @@ class MyApp extends Homey.App
     }
 
     async triggerMotion(tokens)
-    {
-        this.motionTrigger.trigger(tokens).catch(this.err);
+	{
+		this.motionTrigger.trigger(tokens).catch(this.err);
     }
+
+    async getPTZStatus(camObj) {
+        try {
+            // Check camera PTZ capabilities
+            const capabilities = await this.getCapabilities(camObj);
+            if (!capabilities || !capabilities.PTZ) {
+                this.updateLog('This camera does not support PTZ', 0);
+                return false;
+            }
+
+            // Presets are handled directly by the ONVIF library
+            return true;
+        } catch (err) {
+            this.updateLog('Error while checking PTZ support: ' + err.message, 0);
+            return false;
+        }
+    }
+
+	checkSymVersionGreaterEqual(versionString, major, minor, patch) {
+		const versionParts = versionString.split('.').map(num => parseInt(num, 10));
+		if (versionParts.length < 3) {
+			return false;
+		}
+		const [vMajor, vMinor, vPatch] = versionParts;
+		return vMajor > major || (vMajor === major && vMinor > minor) || (vMajor === major && vMinor === minor && vPatch >= patch);
+	}
 }
 
 module.exports = MyApp;

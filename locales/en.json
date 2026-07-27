@@ -1,14 +1,38 @@
 {
     "settings": {
+        "pageTitle": "ONVIF Settings",
         "settings": "Settings",
         "title": "Push Server Settings",
         "port": "Listening Port",
         "save": "Save",
         "diagnosticsLog": "Diagnostics Log",
         "logLevel": "Log Level",
+        "logLevelErrorsOnly": "Errors Only",
+        "logLevelBasic": "Basic Information",
+        "logLevelDetailed": "Detailed Information",
+        "logLevelFull": "Full Information",
         "ClearLog": "Clear Log",
         "SendLog": "Send Log",
-        "email": "Email Address or Forum id (Required if you want me to respond)"
+        "email": "Email Address or Forum id (Required if you want me to respond)",
+        "statistics": "Statistics",
+        "statsLastRateTitle": "Last Push Event Rate (10s window)",
+        "statsRateUpdatesTitle": "Rate History (All Cameras Combined)",
+        "statsNoDataYet": "No data yet",
+        "statsNoUpdatesYet": "No updates yet",
+        "statsRateUnit": "events/s",
+        "statsEventsLabel": "events",
+        "statsAtLabel": "at",
+        "statsPeakRateTitle": "Peak Push Event Rate (since last reset)",
+        "statsPeakRateNone": "No peak recorded yet",
+        "statsPeakRateCamera": "{camera} — {eps} {unit} {at} {time}",
+        "statsClearPeak": "Reset Peak",
+        "statsThrottlingTitle": "Throttling",
+        "statsThrottlingRule": "Throttling starts when a camera sends more than {maxEvents} events within {windowSeconds} seconds.",
+        "statsThrottlingNone": "No cameras are currently throttled",
+        "statsThrottlingItem": "{camera} is throttled (dropped: {dropped}, rate: {rate} {unit})",
+        "saveSuccess": "Saved successfully",
+        "sendLogConfirm": "Send the log contents to the developer?",
+        "sendLogSuccess": "Log sent successfully"
     },
     "Push_Pull_Supported": "Push and Pull supported: ",
     "Using_Pull": "Using Pull",
@@ -19,19 +43,27 @@
     "Motion_Event": "Motion Event",
     "Now": "Snapshot",
     "pair": {
-        "manual_add":{
+        "manual_add": {
             "intro": "Enter Connection Details",
             "title": "Add Camera Manually",
             "title2": "Log in to camera",
+            "repair_title": "Repair Connection",
             "username": "Username",
             "password": "Password",
             "ip_address": "IP Address",
             "port": "ONVIF Service Port",
+            "login": "Login",
+            "status": "Status",
             "checking": "Checking connection",
             "try_again": "Try again",
             "correct": "Successful",
             "adding": "Adding device(s)",
 			"add_port": "Add Port to device ID (use for NVR that maps cameras via port numbers)"
         }
+    },
+    "ptz": {
+        "presetValueTitle": "Preset {index}: {name}",
+        "presetTitle": "PTZ Preset ({count} positions)",
+        "presetSubtitle": "Select a preset position"
     }
 }

@@ -1,9 +1,38 @@
 {
     "settings": {
+        "pageTitle": "ONVIF-instellingen",
+        "settings": "Instellingen",
+        "title": "Pushserver-instellingen",
+        "port": "Luisterpoort",
+        "save": "Opslaan",
         "diagnosticsLog": "Diagnose Log",
         "logLevel": "Log niveau",
+        "logLevelErrorsOnly": "Alleen fouten",
+        "logLevelBasic": "Basisinformatie",
+        "logLevelDetailed": "Gedetailleerde informatie",
+        "logLevelFull": "Volledige informatie",
         "ClearLog": "Log wissen",
-        "SendLog": "Log versturen"
+        "SendLog": "Log versturen",
+        "email": "E-mailadres of forum-id (vereist als je een reactie wilt)",
+        "statistics": "Statistieken",
+        "statsLastRateTitle": "Laatste push-gebeurtenissnelheid (10s-venster)",
+        "statsRateUpdatesTitle": "Snelheidsgeschiedenis (alle camera's gecombineerd)",
+        "statsNoDataYet": "Nog geen gegevens",
+        "statsNoUpdatesYet": "Nog geen updates",
+        "statsRateUnit": "gebeurtenissen/s",
+        "statsEventsLabel": "gebeurtenissen",
+        "statsAtLabel": "om",
+        "statsPeakRateTitle": "Piek push-gebeurtenissnelheid (sinds laatste reset)",
+        "statsPeakRateNone": "Nog geen piek opgenomen",
+        "statsPeakRateCamera": "{camera} — {eps} {unit} {at} {time}",
+        "statsClearPeak": "Piek resetten",
+        "statsThrottlingTitle": "Throttling",
+        "statsThrottlingRule": "Throttling start wanneer een camera meer dan {maxEvents} gebeurtenissen binnen {windowSeconds} seconden verzendt.",
+        "statsThrottlingNone": "Er worden momenteel geen camera's gethrottled",
+        "statsThrottlingItem": "{camera} wordt gethrottled (gedropt: {dropped}, snelheid: {rate} {unit})",
+        "saveSuccess": "Succesvol opgeslagen",
+        "sendLogConfirm": "Loginhoud naar de ontwikkelaar sturen?",
+        "sendLogSuccess": "Log succesvol verzonden"
     },
     "Push_Pull_Supported": "Push en Pull ondersteuning",
     "Using_Pull": "Pull gebruiken",
@@ -12,5 +41,29 @@
     "Only_Push_Supported": "Alleen Push ondersteuning",
     "Not_Supported": "Wordt niet ondersteund",
     "Motion_Event": "Beweging",
-    "Now": "Snapshot"
+    "Now": "Snapshot",
+    "pair": {
+        "manual_add": {
+            "intro": "Voer verbindingsgegevens in",
+            "title": "Camera handmatig toevoegen",
+            "title2": "Inloggen op camera",
+            "repair_title": "Verbinding herstellen",
+            "username": "Gebruikersnaam",
+            "password": "Wachtwoord",
+            "ip_address": "IP-adres",
+            "port": "ONVIF-servicepoort",
+            "login": "Inloggen",
+            "status": "Status",
+            "checking": "Verbinding controleren",
+            "try_again": "Opnieuw proberen",
+            "correct": "Succesvol",
+            "adding": "Appara(a)t(en) toevoegen",
+            "add_port": "Poort toevoegen aan apparaat-ID (gebruik voor NVR die camera's via poortnummers toewijzen)"
+        }
+    },
+    "ptz": {
+        "presetValueTitle": "Preset {index}: {name}",
+        "presetTitle": "PTZ-preset ({count} posities)",
+        "presetSubtitle": "Selecteer een presetpositie"
+    }
 }
